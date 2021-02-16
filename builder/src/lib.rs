@@ -22,11 +22,12 @@ pub fn derive(input: TokenStream) -> TokenStream {
     }).collect();
 
     let field_types:Vec<syn::Type> = utils::derive_get_struct_fields(&ast).unwrap().iter().map(|field|{
-        field.ty.clone()
-    }).collect();
-
-    let field_mising_err_msg:Vec<String> =  utils::derive_get_struct_fields(&ast).unwrap().iter().map(|field|{
-        format!("Field {} is missing",field.ident.clone().unwrap())
+        if let Some(ty) = utils::extract_inner_type(field, "Option".into()){
+            ty.clone()
+        } else {
+            field.ty.clone()
+        }
+        
     }).collect();
 
 
@@ -48,7 +49,11 @@ pub fn derive(input: TokenStream) -> TokenStream {
 
     let builder_methods:Vec<_> = utils::derive_get_struct_fields(&ast).unwrap().iter().map(|field|{
         let field_name = &field.ident;
-        let field_type = &field.ty;
+        let field_type = if utils::is_field_optional(field){
+            utils::extract_inner_type(field, "Option".into()).clone().unwrap()
+        } else {
+            &field.ty
+        };
         quote! {
             fn #field_name(&mut self, #field_name: #field_type) -> &mut Self {
                 self.#field_name = Some(#field_name);
@@ -58,16 +63,41 @@ pub fn derive(input: TokenStream) -> TokenStream {
     }).collect();
     
 
+    let missing_field_check:Vec<_> = utils::derive_get_struct_fields(&ast).unwrap().iter().filter_map(|field|{
+        if utils::is_field_optional(field) {
+            return None
+        }
+        let field_name = &field.ident;
+        let missing_msg = format!("Field {} is missing", field_name.clone().unwrap());
+        return Some(
+            quote!(
+                if let None = self.#field_name {
+                    return Err(#missing_msg.into())
+                }
+            )
+        )
+    }).collect();
+
+    let build_final_result_struct_body: Vec<_> = utils::derive_get_struct_fields(&ast).unwrap().iter().map(|field|{
+        let field_name = &field.ident;
+
+        if utils::is_field_optional(field) {
+            quote!(
+                #field_name:self.#field_name.clone()
+            )
+        } else {
+            quote!(
+                #field_name:self.#field_name.clone().unwrap()
+            )
+        }
+    }).collect();
+
     let builder_build_method = quote!(
         fn build(&mut self) -> Result<#struct_name, Box<dyn std::error::Error>> {
-            #(
-                if let None = self.#field_names {
-                    return Err(#field_mising_err_msg.into())
-                }
-            )*
+            #(#missing_field_check)*
             Ok(
                 #struct_name{
-                    #(#field_names:self.#field_names.clone().unwrap()),*
+                    #(#build_final_result_struct_body),*
                 }
             )
         }
