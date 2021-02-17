@@ -1,12 +1,7 @@
-
-use proc_macro2;
 use proc_macro::TokenStream;
 use quote::{format_ident, quote};
-use syn::{parse_macro_input, DeriveInput};
+use syn::{DeriveInput, parse_macro_input};
 
-use std::{borrow::BorrowMut, mem::ManuallyDrop};
-
-use std::error::Error;
 
 mod utils;
 
@@ -14,28 +9,40 @@ mod utils;
 pub fn derive(input: TokenStream) -> TokenStream {
     
     let ast = parse_macro_input!(input as DeriveInput);
-    // eprintln!("{:#?}", ast);
+    do_derive(ast).unwrap_or_else(syn::Error::into_compile_error).into()
+}
 
+fn do_derive(ast:DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
+    // eprintln!("{:#?}", ast);
     let struct_name = &ast.ident;
     let builder_struct_name = format_ident!("{}Builder", struct_name);
 
-    let builder_struct_items:Vec<_> = utils::derive_get_struct_fields(&ast).unwrap().iter().map(|field|{
+    let builder_struct_items = utils::derive_get_struct_fields(&ast).unwrap().iter().map(|field|{
         let field_name = field.ident.as_ref();
         let field_type =  &field.ty;
-        if utils::get_each_attr_name(field).is_some() {
-            quote!(
-                #field_name:#field_type
-            )
+        if let Some(attr_name) = utils::get_each_attr_name(field) {
+            match attr_name {
+                Ok(_) => {
+                    Ok(quote!(
+                        #field_name:#field_type
+                    ))
+                },
+                Err(e)=>{
+                    Err(e)
+                }
+            }
+            
         } else if utils::extract_inner_type(field, "Option".into()).is_some(){
-            quote!(
+            Ok(quote!(
                 #field_name:#field_type
-            )
+            ))
         } else {
-            quote!(
-                #field_name:Option<#field_type>
-            )
+            Ok(quote!(
+                #field_name:std::option::Option<#field_type>
+            ))
         }
-    }).collect();
+    }).collect::<syn::Result<Vec<_>>>()?;
+
 
     let builder_factory_body_items:Vec<_> = utils::derive_get_struct_fields(&ast).unwrap().iter().map(|field|{
         let field_name = field.ident.as_ref();
@@ -46,7 +53,7 @@ pub fn derive(input: TokenStream) -> TokenStream {
             )
         } else {
             quote!(
-                #field_name:None
+                #field_name:std::option::Option::None
             )
         }
     }).collect();
@@ -73,7 +80,7 @@ pub fn derive(input: TokenStream) -> TokenStream {
         let field_each_name = utils::get_each_attr_name(field);
 
         let t;
-        let field_setter_name = if let Some(setter_name) = field_each_name.as_ref(){
+        let field_setter_name = if let Some(Ok(setter_name)) = field_each_name.as_ref(){
             t = format_ident!("{}",setter_name, span=field_name.span());
             &t
         } else {
@@ -99,7 +106,7 @@ pub fn derive(input: TokenStream) -> TokenStream {
         } else {
             quote! {
                 fn #field_name(&mut self, #field_name: #field_type) -> &mut Self {
-                    self.#field_name = Some(#field_name);
+                    self.#field_name = std::option::Option::Some(#field_name);
                     self
                 }
             }
@@ -116,8 +123,8 @@ pub fn derive(input: TokenStream) -> TokenStream {
         let missing_msg = format!("Field {} is missing", field_name.clone().unwrap());
         return Some(
             quote!(
-                if let None = self.#field_name {
-                    return Err(#missing_msg.into())
+                if let std::option::Option::None = self.#field_name {
+                    return std::result::Result::Err(#missing_msg.into())
                 }
             )
         )
@@ -142,9 +149,9 @@ pub fn derive(input: TokenStream) -> TokenStream {
     }).collect();
 
     let builder_build_method = quote!(
-        fn build(&mut self) -> Result<#struct_name, Box<dyn std::error::Error>> {
+        fn build(&mut self) -> std::result::Result<#struct_name, std::boxed::Box<dyn std::error::Error>> {
             #(#missing_field_check)*
-            Ok(
+            std::result::Result::Ok(
                 #struct_name{
                     #(#build_final_result_struct_body),*
                 }
@@ -154,11 +161,11 @@ pub fn derive(input: TokenStream) -> TokenStream {
 
 
 
-    (quote!{
+    Ok(quote!{
         #builder_struct_def
         impl #builder_struct_name {
             #(#builder_methods)*
             #builder_build_method
         }
-    }).into()
+    })
 }
