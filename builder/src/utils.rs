@@ -75,3 +75,32 @@ pub fn extract_inner_type(field: &syn::Field, container_ident: String) -> Option
     }
     return None
 }
+
+pub fn get_each_attr_name(field: &syn::Field) -> Option<String> {
+    if let Some(attr) = field.attrs.last() {
+        if let Ok(ref meta) = attr.parse_meta() {
+            if meta.path().is_ident("builder") {
+                if let syn::Meta::List(
+                    syn::MetaList{
+                        nested,
+                        ..
+                    }
+                ) = meta {
+                    if let Some(syn::NestedMeta::Meta(
+                        syn::Meta::NameValue(
+                            syn::MetaNameValue{
+                                lit:syn::Lit::Str(
+                                    lit
+                                ),
+                                ..
+                            }
+                        )
+                    )) = nested.last() {
+                        return Some(lit.value())
+                    }
+                }
+            }
+        }
+    }
+    None
+}
