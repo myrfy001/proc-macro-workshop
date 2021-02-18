@@ -15,8 +15,8 @@ use derive_builder::Builder;
 use derive_debug::CustomDebug;
 
 #[derive(CustomDebug)]
-pub struct Field {
-    name: &'static str,
+pub struct Field<T> {
+    value: T,
     #[debug = "0b{:08b}"]
     bitmask: u8,
 }

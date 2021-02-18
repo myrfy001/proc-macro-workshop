@@ -1,7 +1,7 @@
 use proc_macro::TokenStream;
 
-use quote::quote;
-use syn::{parse_macro_input, DeriveInput, Result};
+use quote::{quote};
+use syn::{DeriveInput, Result, parse_macro_input, parse_quote};
 
 #[proc_macro_derive(CustomDebug, attributes(debug))]
 pub fn derive(input: TokenStream) -> TokenStream {
@@ -40,8 +40,17 @@ fn get_inert_attribute_of_field(field:&syn::Field) -> Option<String> {
     None
 }
 
-fn do_derive(ast: &DeriveInput) -> Result<proc_macro2::TokenStream> {
+fn inject_trait_bound(generics: &syn::Generics) -> syn::Generics{
+    let mut g = generics.clone();
+    for gp in &mut g.params{
+        if let syn::GenericParam::Type(syn::TypeParam{ref mut bounds,..}) = gp {
+            bounds.push(parse_quote!(std::fmt::Debug));
+        }
+    }
+    g
+}
 
+fn do_derive(ast: &DeriveInput) -> Result<proc_macro2::TokenStream> {
     let target_struct_name_ident = &ast.ident;
     let target_struct_name_literal = target_struct_name_ident.to_string();
 
@@ -61,10 +70,14 @@ fn do_derive(ast: &DeriveInput) -> Result<proc_macro2::TokenStream> {
         
     }).collect();
 
+    let expanded_generics = inject_trait_bound(&ast.generics);
 
+    let (impl_generics, ty_generics, where_clause) = expanded_generics.split_for_impl();
+
+    
 
     return Ok(quote! {
-        impl std::fmt::Debug for #target_struct_name_ident {
+        impl #impl_generics std::fmt::Debug for #target_struct_name_ident #ty_generics #where_clause {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                 f.debug_struct(#target_struct_name_literal)
                 #(#default_fmt_body)*                    
