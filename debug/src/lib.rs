@@ -6,6 +6,7 @@ use syn::{DeriveInput, Result, parse_macro_input, parse_quote};
 #[proc_macro_derive(CustomDebug, attributes(debug))]
 pub fn derive(input: TokenStream) -> TokenStream {
     let ast = parse_macro_input!(input as DeriveInput);
+    // eprintln!("{:#?}", ast);
     do_derive(&ast).unwrap_or_else(syn::Error::into_compile_error).into()
 }
 
@@ -60,9 +61,32 @@ fn inject_trait_bound(ast: &DeriveInput) -> syn::Generics{
         None
     }).collect();
 
+    let all_associated_types:Vec<_> = get_all_struct_fields(ast).as_ref().unwrap().iter().filter_map(|field|{
+        if let syn::Type::Path(syn::TypePath{ref path,..}) = field.ty {
+            if let Some(ps) = path.segments.last() {
+                if let syn::PathArguments::AngleBracketed(syn::AngleBracketedGenericArguments{ref args, ..}) = ps.arguments {
+                    if let Some(syn::GenericArgument::Type(t)) = args.last() {
+                        if let syn::Type::Path(syn::TypePath{path:syn::Path{segments, ..},..}) = t {
+                            if segments.len() >= 2 {
+                                return Some((&segments[0].ident, t));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        None
+    }).collect();
+
+    
+
     for gp in &mut g.params{
         if let syn::GenericParam::Type(syn::TypeParam{ident, ..}) = gp {
             if all_phantomdata_generic_type_ident.iter().any(|f| *f == ident) {
+                continue
+            }
+
+            if all_associated_types.iter().any(|&(idt, _)| idt == ident) {
                 continue
             }
         }
@@ -70,6 +94,12 @@ fn inject_trait_bound(ast: &DeriveInput) -> syn::Generics{
         if let syn::GenericParam::Type(syn::TypeParam{ref mut bounds,..}) = gp {
             bounds.push(parse_quote!(std::fmt::Debug));
         }
+    }
+
+    let wc = g.make_where_clause();
+
+    for (_, associate_type) in all_associated_types {
+        wc.predicates.push(parse_quote!(#associate_type:std::fmt::Debug))
     }
     g
 }
