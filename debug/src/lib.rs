@@ -40,9 +40,33 @@ fn get_inert_attribute_of_field(field:&syn::Field) -> Option<String> {
     None
 }
 
-fn inject_trait_bound(generics: &syn::Generics) -> syn::Generics{
-    let mut g = generics.clone();
+fn inject_trait_bound(ast: &DeriveInput) -> syn::Generics{
+    let mut g = ast.generics.clone();
+
+    let all_phantomdata_generic_type_ident:Vec<_> = get_all_struct_fields(ast).as_ref().unwrap().iter().filter_map(|field|{
+        if let syn::Type::Path(syn::TypePath{ref path,..}) = field.ty {
+            if let Some(ps) = path.segments.last() {
+                if ps.ident == "PhantomData" {
+                    if let syn::PathArguments::AngleBracketed(syn::AngleBracketedGenericArguments{ref args, ..}) = ps.arguments {
+                        if let Some(syn::GenericArgument::Type(syn::Type::Path(syn::TypePath{path:syn::Path{segments, ..},..}))) = args.last() {
+                            if let Some(path_seg) = segments.last() {
+                                return Some(&path_seg.ident);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        None
+    }).collect();
+
     for gp in &mut g.params{
+        if let syn::GenericParam::Type(syn::TypeParam{ident, ..}) = gp {
+            if all_phantomdata_generic_type_ident.iter().any(|f| *f == ident) {
+                continue
+            }
+        }
+
         if let syn::GenericParam::Type(syn::TypeParam{ref mut bounds,..}) = gp {
             bounds.push(parse_quote!(std::fmt::Debug));
         }
@@ -70,7 +94,7 @@ fn do_derive(ast: &DeriveInput) -> Result<proc_macro2::TokenStream> {
         
     }).collect();
 
-    let expanded_generics = inject_trait_bound(&ast.generics);
+    let expanded_generics = inject_trait_bound(ast);
 
     let (impl_generics, ty_generics, where_clause) = expanded_generics.split_for_impl();
 
