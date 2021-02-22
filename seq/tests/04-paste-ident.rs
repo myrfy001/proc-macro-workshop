@@ -23,7 +23,7 @@
 use seq::seq;
 
 seq!(N in 1..4 {
-    fn f#N () -> u64 {
+    fn f#N#_suffix () -> u64 {
         N * 2
     }
 });
@@ -33,12 +33,12 @@ seq!(N in 1..4 {
 // incorrectly started at N=0 like in the previous tests cases, the first
 // generated function would conflict with this one and the program would not
 // compile.
-fn f0() -> u64 {
+fn f0_suffix() -> u64 {
     100
 }
 
 fn main() {
-    let sum = f0() + f1() + f2() + f3();
+    let sum = f0_suffix() + f1_suffix() + f2_suffix() + f3_suffix();
 
     assert_eq!(sum, 100 + 2 + 4 + 6);
 }
