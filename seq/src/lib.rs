@@ -149,7 +149,7 @@ impl SeqDef {
                                                     ident_3.to_string()
                                                 )
                                                 .as_str(),
-                                                p.span(),
+                                                ident_1.span(),
                                             )
                                             .to_token_stream(),
                                         );
@@ -161,7 +161,7 @@ impl SeqDef {
                             return Some(
                                 proc_macro2::Ident::new(
                                     format!("{}{}", ident_1.to_string(), i.to_string()).as_str(),
-                                    p.span(),
+                                    ident_1.span(),
                                 )
                                 .to_token_stream(),
                             );
@@ -175,7 +175,7 @@ impl SeqDef {
                                         i.to_string(),
                                     )
                                     .as_str(),
-                                    p.span(),
+                                    ident_1.span(),
                                 )
                                 .to_token_stream()
                             )
@@ -186,7 +186,7 @@ impl SeqDef {
                         return Some(
                             proc_macro2::Ident::new(
                                 format!("{}{}", ident_1.to_string(), i.to_string()).as_str(),
-                                p.span(),
+                                ident_1.span(),
                             )
                             .to_token_stream(),
                         );
