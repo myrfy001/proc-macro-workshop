@@ -210,10 +210,19 @@ struct SeqDef {
 
 impl syn::parse::Parse for SeqDef {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let mut inclusive = false;
+
         let ident: syn::Ident = input.parse()?;
         input.parse::<syn::Token![in]>()?;
         let start_num_lit: syn::LitInt = input.parse()?;
         input.parse::<syn::Token![..]>()?;
+
+        
+        if input.peek(syn::Token!(=)) {
+            inclusive = true;
+            input.parse::<syn::Token![=]>()?;
+        }
+
         let stop_num_lit: syn::LitInt = input.parse()?;
 
         let body;
@@ -224,11 +233,16 @@ impl syn::parse::Parse for SeqDef {
 
         // eprintln!("===={:#?}", body);
 
-        return Ok(SeqDef {
+        let mut ret = SeqDef {
             ident,
             start_num: start_num_lit.base10_parse::<i64>()?,
             stop_num: stop_num_lit.base10_parse::<i64>()?,
             body,
-        });
+        };
+        if inclusive {
+            ret.stop_num += 1;
+        }
+
+        Ok(ret)
     }
 }
