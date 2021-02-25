@@ -8,20 +8,15 @@
 
 
 
+use sorted::sorted;
 
-use seq::seq;
-
-seq!(N in 0..16 {
-    enum Interrupt {
-        #(
-            Irq#N,
-        )*
-    }
-});
-
-fn main() {
-    let interrupt = Interrupt::Irq8;
-
-    assert_eq!(interrupt as u8, 8);
-    assert_eq!(interrupt, Interrupt::Irq8);
+#[sorted]
+pub enum Conference {
+    RustBeltRust,
+    RustConf,
+    RustFest,
+    RustLatam,
+    RustRush,
 }
+
+fn main() {}
