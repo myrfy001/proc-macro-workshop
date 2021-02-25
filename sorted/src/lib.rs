@@ -10,7 +10,16 @@ pub fn sorted(args: TokenStream, input: TokenStream) -> TokenStream {
 
     match do_sort_check(&args, &st) {
         Ok(_) => st.into_token_stream().into(),
-        Err(e) => e.to_compile_error().into()
+        Err(e) => {
+            // let mut new_stream = st.into_token_stream();
+            // new_stream.extend(e.to_compile_error());
+            // new_stream.into()
+
+            let mut new_stream =e.to_compile_error();
+            new_stream.extend(st.to_token_stream());
+            new_stream.into()
+        }
+
     }
     
 }
