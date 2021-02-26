@@ -93,6 +93,7 @@ impl syn::visit_mut::VisitMut for FnVisitor {
             node.attrs.remove(idx);
         }
 
+        let mut not_supported_arm:  Option<&syn::Arm> = None;
         let org_order: Vec<(String, &syn::Path)> = node
             .arms
             .iter()
@@ -107,10 +108,15 @@ impl syn::visit_mut::VisitMut for FnVisitor {
                     syn::Pat::Struct(ref ps) => {
                         return Some((join_path_segments(&ps.path), &ps.path));
                     }
-                    _ => return None,
+                    _ => {if not_supported_arm.is_none() {not_supported_arm = Some(a)}  ;return None},
                 }
             })
             .collect();
+
+        if let Some(a) = not_supported_arm {
+            self.err = Err(syn::Error::new_spanned(&a.pat, "unsupported by #[sorted]"));
+                return;
+        }
 
         let mut sorted_order = org_order.clone();
         sorted_order.sort_by(|a, b| a.0.cmp(&b.0));
