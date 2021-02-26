@@ -94,19 +94,25 @@ impl syn::visit_mut::VisitMut for FnVisitor {
         }
 
         let mut not_supported_arm:  Option<&syn::Arm> = None;
-        let org_order: Vec<(String, &syn::Path)> = node
+        let org_order: Vec<(String, &dyn quote::ToTokens)> = node
             .arms
             .iter()
             .filter_map(|a| {
                 match a.pat {
                     syn::Pat::TupleStruct(ref pts) => {
-                        return Some((join_path_segments(&pts.path), &pts.path ));
+                        return Some((join_path_segments(&pts.path), &pts.path as &dyn quote::ToTokens));
                     }
                     syn::Pat::Path(ref pp) => {
-                        return Some((join_path_segments(&pp.path), &pp.path ));
+                        return Some((join_path_segments(&pp.path), &pp.path as &dyn quote::ToTokens));
                     }
                     syn::Pat::Struct(ref ps) => {
-                        return Some((join_path_segments(&ps.path), &ps.path));
+                        return Some((join_path_segments(&ps.path), &ps.path as &dyn quote::ToTokens));
+                    }
+                    syn::Pat::Ident(ref pi) => {
+                        return Some((pi.ident.to_string(), pi as &dyn quote::ToTokens));
+                    }
+                    syn::Pat::Wild(ref w) => {
+                        return Some(("_".into(), &w.underscore_token as &dyn quote::ToTokens));
                     }
                     _ => {if not_supported_arm.is_none() {not_supported_arm = Some(a)}  ;return None},
                 }
