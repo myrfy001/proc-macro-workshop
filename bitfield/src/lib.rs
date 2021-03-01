@@ -11,5 +11,11 @@
 // From the perspective of a user of this crate, they get all the necessary APIs
 // (macro, trait, struct) through the one bitfield crate.
 pub use bitfield_impl::bitfield;
+pub use bitfield_impl::define_field_width_enums;
 
-// TODO other things
+
+pub trait Specifier{
+   const BITS:i32;
+}
+
+define_field_width_enums!();

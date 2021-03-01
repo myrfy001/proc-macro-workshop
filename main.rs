@@ -7,28 +7,16 @@
 //     $ cargo run
 
 
-use sorted::sorted;
+use bitfield::*;
 
-use std::fmt::{self, Display};
-use std::io;
-
-#[sorted]
-pub enum Error {
-    Fmt(fmt::Error),
-    Io(io::Error),
+//#[bitfield]
+pub struct MyFourBytes {
+    a: B1,
+    b: B3,
+    c: B4,
+    d: B24,
 }
 
-impl Display for Error {
-    #[sorted::check]
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        use self::Error::*;
-
-        #[sorted]
-        match self {
-            Io(e) => write!(f, "{}", e),
-            Fmt(e) => write!(f, "{}", e),
-        }
-    }
+fn main() {
+    assert_eq!(<B24 as Specifier>::BITS, 24);
 }
-
-fn main() {}

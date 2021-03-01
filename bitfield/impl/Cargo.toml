@@ -8,4 +8,6 @@ publish = false
 proc-macro = true
 
 [dependencies]
-# TODO
+syn = { version = "1.0.60", features = ["full", "extra-traits"] }
+proc-macro2 = {version="1.0.0", features=["span-locations"]}
+quote = {version="1.0"}
