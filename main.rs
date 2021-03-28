@@ -9,14 +9,14 @@
 
 use bitfield::*;
 
-//#[bitfield]
-pub struct MyFourBytes {
-    a: B1,
-    b: B3,
-    c: B4,
-    d: B24,
+type A = B1;
+type B = B3;
+type C = B4;
+type D = B23;
+
+#[bitfield]
+pub struct NotQuiteFourBytes {
+    b : [u8;A::BITS + B::BITS]
 }
 
-fn main() {
-    assert_eq!(<B24 as Specifier>::BITS, 24);
-}
+fn main() {}

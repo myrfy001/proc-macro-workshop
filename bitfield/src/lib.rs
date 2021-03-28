@@ -15,7 +15,7 @@ pub use bitfield_impl::define_field_width_enums;
 
 
 pub trait Specifier{
-   const BITS:i32;
+   const BITS:usize;
 }
 
 define_field_width_enums!();
