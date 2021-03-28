@@ -7,26 +7,48 @@ pub fn bitfield(args: TokenStream, input: TokenStream) -> TokenStream {
     let _ = args;
 
     let st = syn::parse_macro_input!(input as syn::ItemStruct);
-
-    eprintln!("==========\n{:#?}", st);
-    st.to_token_stream().into()
+    return generate_real_struct(&st).unwrap_or_else(syn::Error::into_compile_error).into();
+ 
 }
 
 
-fn get_struct_fields(st: &syn::ItemStruct) -> Result<Vec<&syn::Field>, String>{
+fn get_struct_fields(st: &syn::ItemStruct) -> syn::Result<Vec<&syn::Field>>{
     if let syn::Fields::Named(ref named_fields) = st.fields {
         let t: Vec<_> = named_fields.named.iter().map(|f|f).collect();
         return Ok(t);
     }
-    return Err("".to_string())
+    return Err(syn::Error::new_spanned(st,""))
 }
 
-// fn calc_total_bit_width(st: &syn::ItemStruct) -> Result<i32, String>{
-//     let mut total_bit_width = 0;
-//     for field in get_struct_fields(st)? {
-//         field
-//     }
-// }
+fn generate_total_bitwidth_devide_by_8_expression(st: &syn::ItemStruct) -> syn::Result<proc_macro2::TokenStream>{
+    let mut plus_part = proc_macro2::TokenStream::new();
+
+    let fields = get_struct_fields(st)?;
+
+    for (idx, field) in fields.iter().enumerate() {
+        let field_type = &field.ty;
+        if idx == fields.len() - 1  {
+            plus_part.extend(quote!(<#field_type as Specifier>::BITS));
+        } else {
+            plus_part.extend(quote!(<#field_type as Specifier>::BITS + ));
+        }
+    }
+
+    let ret = quote!((#plus_part) / 8); 
+    return Ok(ret)
+}
+
+fn generate_real_struct(st: &syn::ItemStruct) -> syn::Result<proc_macro2::TokenStream> {
+    let length_expression = generate_total_bitwidth_devide_by_8_expression(st)?;
+    let mut st_to_mut = st.clone();
+    
+    let t:syn::FieldsNamed = syn::parse_quote!({data: [u8; #length_expression],});
+    st_to_mut.fields = syn::Fields::Named(t);
+    Ok(st_to_mut.to_token_stream())
+}
+
+
+
 
 
 #[proc_macro]
